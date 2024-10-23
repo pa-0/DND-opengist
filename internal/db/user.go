@@ -6,7 +6,7 @@ import (
 
 type User struct {
 	ID        uint   `gorm:"primaryKey"`
-	Username  string `gorm:"uniqueIndex"`
+	Username  string `gorm:"uniqueIndex,size:191"`
 	Password  string
 	IsAdmin   bool
 	CreatedAt int64
@@ -18,9 +18,10 @@ type User struct {
 	GiteaID   string
 	OIDCID    string `gorm:"column:oidc_id"`
 
-	Gists   []Gist   `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:UserID"`
-	SSHKeys []SSHKey `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:UserID"`
-	Liked   []Gist   `gorm:"many2many:likes;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	Gists               []Gist               `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:UserID"`
+	SSHKeys             []SSHKey             `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:UserID"`
+	Liked               []Gist               `gorm:"many2many:likes;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	WebAuthnCredentials []WebAuthnCredential `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:UserID"`
 }
 
 func (user *User) BeforeDelete(tx *gorm.DB) error {
@@ -54,6 +55,11 @@ func (user *User) BeforeDelete(tx *gorm.DB) error {
 	}
 
 	err = tx.Where("user_id = ?", user.ID).Delete(&SSHKey{}).Error
+	if err != nil {
+		return err
+	}
+
+	err = tx.Where("user_id = ?", user.ID).Delete(&WebAuthnCredential{}).Error
 	if err != nil {
 		return err
 	}
@@ -116,6 +122,15 @@ func GetUsersFromEmails(emailsSet map[string]struct{}) (map[string]*User, error)
 	}
 
 	return userMap, nil
+}
+
+func GetUserFromSSHKey(sshKey string) (*User, error) {
+	user := new(User)
+	err := db.
+		Joins("JOIN ssh_keys ON users.id = ssh_keys.user_id").
+		Where("ssh_keys.content = ?", sshKey).
+		First(&user).Error
+	return user, err
 }
 
 func SSHKeyExistsForUser(sshKey string, userId uint) (*SSHKey, error) {
@@ -189,6 +204,13 @@ func (user *User) DeleteProviderID(provider string) error {
 	}
 
 	return nil
+}
+
+func (user *User) HasMFA() (bool, error) {
+	var exists bool
+	err := db.Model(&WebAuthnCredential{}).Select("count(*) > 0").Where("user_id = ?", user.ID).Find(&exists).Error
+
+	return exists, err
 }
 
 // -- DTO -- //

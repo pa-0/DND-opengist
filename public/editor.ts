@@ -1,6 +1,6 @@
 import {EditorView, gutter, keymap, lineNumbers} from "@codemirror/view";
 import {Compartment, EditorState, Facet, Line, SelectionRange} from "@codemirror/state";
-import {indentLess} from "@codemirror/commands";
+import {defaultKeymap, indentLess} from "@codemirror/commands";
 
 document.addEventListener("DOMContentLoaded", () => {
     EditorView.theme({}, {dark: true});
@@ -27,7 +27,10 @@ document.addEventListener("DOMContentLoaded", () => {
             extensions: [
                 lineNumbers(),
                 gutter({class: "cm-mygutter"}),
-                keymap.of([{key: "Tab", run: customIndentMore, shift: indentLess}]),
+                keymap.of([
+                    {key: "Tab", run: customIndentMore, shift: indentLess},
+                    ...defaultKeymap,
+                ]),
                 indentSize.of(EditorState.tabSize.of(2)),
                 wrapMode.of([]),
                 indentType.of(txtFacet.of("space")),
@@ -36,8 +39,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
         let mdpreview = dom.querySelector(".md-preview") as HTMLElement;
 
+        let formfilename = dom.querySelector<HTMLInputElement>(".form-filename");
+
+        // check if file ends with .md on pageload
+        if (formfilename!.value.endsWith(".md")) {
+            mdpreview!.classList.remove("hidden");
+        } else {
+            mdpreview!.classList.add("hidden");
+        }
+
         // event if the filename ends with .md; trigger event
-        dom.querySelector<HTMLInputElement>(".form-filename")!.onkeyup = (e) => {
+        formfilename!.onkeyup = (e) => {
             let filename = (e.target as HTMLInputElement).value;
             if (filename.endsWith(".md")) {
                 mdpreview!.classList.remove("hidden");
@@ -59,11 +71,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 cmeditor!.classList.remove("hidden-important");
                 return;
             } else {
-                fetch(`${baseUrl}/preview?` +  new URLSearchParams({
-                    content: editor.state.doc.toString()
-                }), {
-                    method: 'GET',
+                const formData = new FormData();
+                formData.append('content', editor.state.doc.toString());
+                fetch(`${baseUrl}/preview`, {
+                    method: 'POST',
                     credentials: 'same-origin',
+                    body: formData
                 }).then(r => r.text()).then(r => {
                     let divpreview = dom.querySelector("div.preview") as HTMLElement;
                     divpreview!.innerHTML = r;
@@ -102,6 +115,7 @@ document.addEventListener("DOMContentLoaded", () => {
             deleteBtns.onclick = () => {
                 editorsjs.splice(editorsjs.indexOf(editor), 1);
                 dom.remove();
+                checkForFirstDeleteButton();
             };
         }
 
@@ -182,6 +196,8 @@ document.addEventListener("DOMContentLoaded", () => {
         editorsjs.push(currEditor);
     });
 
+    checkForFirstDeleteButton();
+
     document.getElementById("add-file")!.onclick = () => {
         let newEditorDom = firstEditordom.cloneNode(true) as HTMLElement;
 
@@ -195,6 +211,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // creating the new codemirror editor and append it in the editor div
         editorsjs.push(newEditor(newEditorDom));
         editorsParentdom.append(newEditorDom);
+        showDeleteButton(newEditorDom);
     };
 
     document.querySelector<HTMLFormElement>("form#create")!.onsubmit = () => {
@@ -215,6 +232,27 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.innerText = btn.innerText.replace('▲', '▼');
         }
 
+    }
+
+    function checkForFirstDeleteButton() {
+        let deleteBtn = editorsParentdom.querySelector<HTMLButtonElement>("button.delete-file")!;
+        if (editorsjs.length === 1) {
+            deleteBtn.classList.add("hidden");
+            deleteBtn.previousElementSibling.classList.remove("rounded-l-md");
+            deleteBtn.previousElementSibling.classList.add("rounded-md");
+        } else {
+            deleteBtn.classList.remove("hidden");
+            deleteBtn.previousElementSibling.classList.add("rounded-l-md");
+            deleteBtn.previousElementSibling.classList.remove("rounded-md");
+        }
+    }
+
+    function showDeleteButton(editorDom: HTMLElement) {
+        let deleteBtn = editorDom.querySelector<HTMLButtonElement>("button.delete-file")!;
+        deleteBtn.classList.remove("hidden");
+        deleteBtn.previousElementSibling.classList.add("rounded-l-md");
+        deleteBtn.previousElementSibling.classList.remove("rounded-md");
+        checkForFirstDeleteButton();
     }
 
     document.onsubmit = () => {

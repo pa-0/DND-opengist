@@ -14,7 +14,6 @@ import (
 	"strings"
 )
 
-var title = cases.Title(language.English)
 var Locales = NewLocaleStore()
 
 type LocaleStore struct {
@@ -59,7 +58,7 @@ func (store *LocaleStore) loadLocaleFromYAML(localeCode, path string) error {
 
 	locale := &Locale{
 		Code:     localeCode,
-		Name:     title.String(name),
+		Name:     cases.Title(language.English).String(name),
 		Messages: make(map[string]string),
 	}
 
@@ -110,6 +109,20 @@ func (store *LocaleStore) MatchTag(langs []language.Tag) string {
 	}
 
 	return "en-US"
+}
+
+func (l *Locale) String(key string, args ...any) string {
+	message := l.Messages[key]
+
+	if message == "" {
+		return Locales.Locales["en-US"].String(key, args...)
+	}
+
+	if len(args) == 0 {
+		return message
+	}
+
+	return fmt.Sprintf(message, args...)
 }
 
 func (l *Locale) Tr(key string, args ...any) template.HTML {

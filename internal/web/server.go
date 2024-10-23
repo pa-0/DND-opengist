@@ -2,12 +2,9 @@ package web
 
 import (
 	"context"
-	"encoding/json"
+	gojson "encoding/json"
 	"errors"
 	"fmt"
-	"github.com/thomiceli/opengist/internal/index"
-	"github.com/thomiceli/opengist/internal/utils"
-	"github.com/thomiceli/opengist/templates"
 	htmlpkg "html"
 	"html/template"
 	"io"
@@ -21,11 +18,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thomiceli/opengist/internal/index"
+	"github.com/thomiceli/opengist/internal/utils"
+	"github.com/thomiceli/opengist/templates"
+
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/markbates/goth/gothic"
 	"github.com/rs/zerolog/log"
+	"github.com/thomiceli/opengist/internal/auth"
 	"github.com/thomiceli/opengist/internal/config"
 	"github.com/thomiceli/opengist/internal/db"
 	"github.com/thomiceli/opengist/internal/git"
@@ -62,6 +64,9 @@ var (
 		},
 		"isCsv": func(i string) bool {
 			return strings.ToLower(filepath.Ext(i)) == ".csv"
+		},
+		"isSvg": func(i string) bool {
+			return strings.ToLower(filepath.Ext(i)) == ".svg"
 		},
 		"csvFile": func(file *git.File) *git.CsvFile {
 			if strings.ToLower(filepath.Ext(file.Filename)) != ".csv" {
@@ -159,12 +164,12 @@ type Server struct {
 	dev  bool
 }
 
-func NewServer(isDev bool) *Server {
+func NewServer(isDev bool, sessionsPath string) *Server {
 	dev = isDev
 	flashStore = sessions.NewCookieStore([]byte("opengist"))
-	userStore = sessions.NewFilesystemStore(path.Join(config.GetHomeDir(), "sessions"),
-		utils.ReadKey(path.Join(config.GetHomeDir(), "sessions", "session-auth.key")),
-		utils.ReadKey(path.Join(config.GetHomeDir(), "sessions", "session-encrypt.key")),
+	userStore = sessions.NewFilesystemStore(sessionsPath,
+		utils.ReadKey(path.Join(sessionsPath, "session-auth.key")),
+		utils.ReadKey(path.Join(sessionsPath, "session-encrypt.key")),
 	)
 	userStore.MaxLength(10 * 1024)
 	gothic.Store = userStore
@@ -187,8 +192,8 @@ func NewServer(isDev bool) *Server {
 	e.Pre(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
 		LogURI: true, LogStatus: true, LogMethod: true,
 		LogValuesFunc: func(ctx echo.Context, v middleware.RequestLoggerValues) error {
-			log.Info().Str("URI", v.URI).Int("status", v.Status).Str("method", v.Method).
-				Str("ip", ctx.RealIP()).
+			log.Info().Str("uri", v.URI).Int("status", v.Status).Str("method", v.Method).
+				Str("ip", ctx.RealIP()).TimeDiff("duration", time.Now(), v.StartTime).
 				Msg("HTTP")
 			return nil
 		},
@@ -213,14 +218,14 @@ func NewServer(isDev bool) *Server {
 	}
 
 	e.HTTPErrorHandler = func(er error, ctx echo.Context) {
-		if err, ok := er.(*echo.HTTPError); ok {
-			if err.Code >= 500 {
-				log.Error().Int("code", err.Code).Err(err.Internal).Msg("HTTP: " + err.Message.(string))
+		if httpErr, ok := er.(*HTMLError); ok {
+			setData(ctx, "error", er)
+			if fatalErr := htmlWithCode(ctx, httpErr.Code, "error.html"); fatalErr != nil {
+				log.Fatal().Err(fatalErr).Send()
 			}
-
-			setData(ctx, "error", err)
-			if errHtml := htmlWithCode(ctx, err.Code, "error.html"); errHtml != nil {
-				log.Fatal().Err(errHtml).Send()
+		} else if httpErr, ok := er.(*JSONError); ok {
+			if fatalErr := json(ctx, httpErr.Code, httpErr); fatalErr != nil {
+				log.Fatal().Err(fatalErr).Send()
 			}
 		} else {
 			log.Fatal().Err(er).Send()
@@ -240,19 +245,19 @@ func NewServer(isDev bool) *Server {
 	{
 		if !dev {
 			g1.Use(middleware.CSRFWithConfig(middleware.CSRFConfig{
-				TokenLookup:    "form:_csrf",
+				TokenLookup:    "form:_csrf,header:X-CSRF-Token",
 				CookiePath:     "/",
 				CookieHTTPOnly: true,
 				CookieSameSite: http.SameSiteStrictMode,
 			}))
-			g1.Use(csrfInit)
 		}
-
+		g1.Use(csrfInit)
 		g1.GET("/", create, logged)
 		g1.POST("/", processCreate, logged)
-		g1.GET("/preview", preview, logged)
+		g1.POST("/preview", preview, logged)
 
 		g1.GET("/healthcheck", healthcheck)
+		g1.GET("/metrics", metrics)
 
 		g1.GET("/register", register)
 		g1.POST("/register", processRegister)
@@ -261,12 +266,21 @@ func NewServer(isDev bool) *Server {
 		g1.GET("/logout", logout)
 		g1.GET("/oauth/:provider", oauth)
 		g1.GET("/oauth/:provider/callback", oauthCallback)
+		g1.GET("/oauth/:provider/unlink", oauthUnlink, logged)
+		g1.POST("/webauthn/bind", beginWebAuthnBinding, logged)
+		g1.POST("/webauthn/bind/finish", finishWebAuthnBinding, logged)
+		g1.POST("/webauthn/login", beginWebAuthnLogin)
+		g1.POST("/webauthn/login/finish", finishWebAuthnLogin)
+		g1.POST("/webauthn/assertion", beginWebAuthnAssertion, inMFASession)
+		g1.POST("/webauthn/assertion/finish", finishWebAuthnAssertion, inMFASession)
+		g1.GET("/mfa", mfa, inMFASession)
 
 		g1.GET("/settings", userSettings, logged)
 		g1.POST("/settings/email", emailProcess, logged)
 		g1.DELETE("/settings/account", accountDeleteProcess, logged)
 		g1.POST("/settings/ssh-keys", sshKeysProcess, logged)
 		g1.DELETE("/settings/ssh-keys/:id", sshKeysDelete, logged)
+		g1.DELETE("/settings/passkeys/:id", passkeyDelete, logged)
 		g1.PUT("/settings/password", passwordProcess, logged)
 		g1.PUT("/settings/username", usernameProcess, logged)
 		g2 := g1.Group("/admin-panel")
@@ -308,21 +322,21 @@ func NewServer(isDev bool) *Server {
 
 		g3 := g1.Group("/:user/:gistname")
 		{
-			g3.Use(checkRequireLogin, gistInit)
+			g3.Use(makeCheckRequireLogin(true), gistInit)
 			g3.GET("", gistIndex)
 			g3.GET("/rev/:revision", gistIndex)
 			g3.GET("/revisions", revisions)
 			g3.GET("/archive/:revision", downloadZip)
-			g3.POST("/visibility", toggleVisibility, logged, writePermission)
+			g3.POST("/visibility", editVisibility, logged, writePermission)
 			g3.POST("/delete", deleteGist, logged, writePermission)
 			g3.GET("/raw/:revision/:file", rawFile)
 			g3.GET("/download/:revision/:file", downloadFile)
 			g3.GET("/edit", edit, logged, writePermission)
 			g3.POST("/edit", processCreate, logged, writePermission)
 			g3.POST("/like", like, logged)
-			g3.GET("/likes", likes)
+			g3.GET("/likes", likes, checkRequireLogin)
 			g3.POST("/fork", fork, logged)
-			g3.GET("/forks", forks)
+			g3.GET("/forks", forks, checkRequireLogin)
 			g3.PUT("/checkbox", checkbox, logged, writePermission)
 		}
 	}
@@ -330,6 +344,9 @@ func NewServer(isDev bool) *Server {
 	customFs := os.DirFS(filepath.Join(config.GetHomeDir(), "custom"))
 	e.GET("/assets/*", func(ctx echo.Context) error {
 		if _, err := public.Files.Open(path.Join("assets", ctx.Param("*"))); !dev && err == nil {
+			ctx.Response().Header().Set("Cache-Control", "public, max-age=31536000")
+			ctx.Response().Header().Set("Expires", time.Now().AddDate(1, 0, 0).Format(http.TimeFormat))
+
 			return echo.WrapHandler(http.FileServer(http.FS(public.Files)))(ctx)
 		}
 
@@ -515,19 +532,40 @@ func logged(next echo.HandlerFunc) echo.HandlerFunc {
 	}
 }
 
-func checkRequireLogin(next echo.HandlerFunc) echo.HandlerFunc {
+func inMFASession(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(ctx echo.Context) error {
-		if user := getUserLogged(ctx); user != nil {
-			return next(ctx)
-		}
-
-		require := getData(ctx, "RequireLogin")
-		if require == true {
-			addFlash(ctx, "You must be logged in to access gists", "error")
-			return redirect(ctx, "/login")
+		sess := getSession(ctx)
+		_, ok := sess.Values["mfaID"].(uint)
+		if !ok {
+			return errorRes(400, tr(ctx, "error.not-in-mfa-session"), nil)
 		}
 		return next(ctx)
 	}
+}
+
+func makeCheckRequireLogin(isSingleGistAccess bool) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(ctx echo.Context) error {
+			if user := getUserLogged(ctx); user != nil {
+				return next(ctx)
+			}
+
+			allow, err := auth.ShouldAllowUnauthenticatedGistAccess(ContextAuthInfo{ctx}, isSingleGistAccess)
+			if err != nil {
+				log.Fatal().Err(err).Msg("Failed to check if unauthenticated access is allowed")
+			}
+
+			if !allow {
+				addFlash(ctx, tr(ctx, "flash.auth.must-be-logged-in"), "error")
+				return redirect(ctx, "/login")
+			}
+			return next(ctx)
+		}
+	}
+}
+
+func checkRequireLogin(next echo.HandlerFunc) echo.HandlerFunc {
+	return makeCheckRequireLogin(false)(next)
 }
 
 func noRouteFound(echo.Context) error {
@@ -551,7 +589,7 @@ func parseManifestEntries() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to read manifest.json")
 	}
-	if err = json.Unmarshal(byteValue, &manifestEntries); err != nil {
+	if err = gojson.Unmarshal(byteValue, &manifestEntries); err != nil {
 		log.Fatal().Err(err).Msg("Failed to unmarshal manifest.json")
 	}
 }

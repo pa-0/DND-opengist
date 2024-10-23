@@ -5,9 +5,12 @@ import (
 	"errors"
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo/v4"
+	"github.com/rs/zerolog/log"
 	"github.com/thomiceli/opengist/internal/config"
 	"github.com/thomiceli/opengist/internal/db"
 	"github.com/thomiceli/opengist/internal/i18n"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"html/template"
 	"net/http"
 	"strconv"
@@ -15,6 +18,14 @@ import (
 )
 
 type dataTypeKey string
+
+type HTMLError struct {
+	*echo.HTTPError
+}
+
+type JSONError struct {
+	*echo.HTTPError
+}
 
 const dataKey dataTypeKey = "data"
 
@@ -43,6 +54,10 @@ func htmlWithCode(ctx echo.Context, code int, template string) error {
 	return ctx.Render(code, template, ctx.Request().Context().Value(dataKey))
 }
 
+func json(ctx echo.Context, code int, data any) error {
+	return ctx.JSON(code, data)
+}
+
 func redirect(ctx echo.Context, location string) error {
 	return ctx.Redirect(302, config.C.ExternalUrl+location)
 }
@@ -56,7 +71,21 @@ func notFound(message string) error {
 }
 
 func errorRes(code int, message string, err error) error {
-	return &echo.HTTPError{Code: code, Message: message, Internal: err}
+	if code >= 500 {
+		var skipLogger = log.With().CallerWithSkipFrameCount(3).Logger()
+		skipLogger.Error().Err(err).Msg(message)
+	}
+
+	return &HTMLError{&echo.HTTPError{Code: code, Message: message, Internal: err}}
+}
+
+func jsonErrorRes(code int, message string, err error) error {
+	if code >= 500 {
+		var skipLogger = log.With().CallerWithSkipFrameCount(3).Logger()
+		skipLogger.Error().Err(err).Msg(message)
+	}
+
+	return &JSONError{&echo.HTTPError{Code: code, Message: message, Internal: err}}
 }
 
 func getUserLogged(ctx echo.Context) *db.User {
@@ -94,14 +123,15 @@ func saveSession(sess *sessions.Session, ctx echo.Context) {
 func deleteSession(ctx echo.Context) {
 	sess := getSession(ctx)
 	sess.Options.MaxAge = -1
-	sess.Values["user"] = nil
 	saveSession(sess, ctx)
 }
 
 func setCsrfHtmlForm(ctx echo.Context) {
+	var csrf string
 	if csrfToken, ok := ctx.Get("csrf").(string); ok {
-		setData(ctx, "csrfHtml", template.HTML(`<input type="hidden" name="_csrf" value="`+csrfToken+`">`))
+		csrf = csrfToken
 	}
+	setData(ctx, "csrfHtml", template.HTML(`<input type="hidden" name="_csrf" value="`+csrf+`">`))
 }
 
 func deleteCsrfCookie(ctx echo.Context) {
@@ -116,7 +146,7 @@ func loadSettings(ctx echo.Context) error {
 
 	for key, value := range settings {
 		s := strings.ReplaceAll(key, "-", " ")
-		s = title.String(s)
+		s = cases.Title(language.English).String(s)
 		setData(ctx, strings.ReplaceAll(s, " ", ""), value == "1")
 	}
 	return nil
@@ -158,11 +188,11 @@ func paginate[T any](ctx echo.Context, data []*T, pageInt int, perPage int, temp
 
 	switch labels {
 	case 1:
-		setData(ctx, "prevLabel", tr(ctx, "pagination.previous"))
-		setData(ctx, "nextLabel", tr(ctx, "pagination.next"))
+		setData(ctx, "prevLabel", trH(ctx, "pagination.previous"))
+		setData(ctx, "nextLabel", trH(ctx, "pagination.next"))
 	case 2:
-		setData(ctx, "prevLabel", tr(ctx, "pagination.newer"))
-		setData(ctx, "nextLabel", tr(ctx, "pagination.older"))
+		setData(ctx, "prevLabel", trH(ctx, "pagination.newer"))
+		setData(ctx, "nextLabel", trH(ctx, "pagination.older"))
 	}
 
 	setData(ctx, "urlPage", urlPage)
@@ -170,9 +200,14 @@ func paginate[T any](ctx echo.Context, data []*T, pageInt int, perPage int, temp
 	return nil
 }
 
-func tr(ctx echo.Context, key string) template.HTML {
+func trH(ctx echo.Context, key string, args ...any) template.HTML {
 	l := getData(ctx, "locale").(*i18n.Locale)
-	return l.Tr(key)
+	return l.Tr(key, args...)
+}
+
+func tr(ctx echo.Context, key string, args ...any) string {
+	l := getData(ctx, "locale").(*i18n.Locale)
+	return l.String(key, args...)
 }
 
 func parseSearchQueryStr(query string) (string, map[string]string) {

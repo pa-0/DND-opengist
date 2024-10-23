@@ -19,6 +19,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog/log"
+	"github.com/thomiceli/opengist/internal/auth"
 	"github.com/thomiceli/opengist/internal/db"
 	"github.com/thomiceli/opengist/internal/git"
 	"github.com/thomiceli/opengist/internal/memdb"
@@ -70,12 +71,17 @@ func gitHttp(ctx echo.Context) error {
 
 			setData(ctx, "repositoryPath", repositoryPath)
 
+			allow, err := auth.ShouldAllowUnauthenticatedGistAccess(ContextAuthInfo{ctx}, true)
+			if err != nil {
+				log.Fatal().Err(err).Msg("Cannot check if unauthenticated access is allowed")
+			}
+
 			// Shows basic auth if :
 			// - user wants to push the gist
 			// - user wants to clone/pull a private gist
 			// - gist is not found (obfuscation)
 			// - admin setting to require login is set to true
-			if isPull && gist.Private != db.PrivateVisibility && gist.ID != 0 && !getData(ctx, "RequireLogin").(bool) {
+			if isPull && gist.Private != db.PrivateVisibility && gist.ID != 0 && allow {
 				return route.handler(ctx)
 			}
 
@@ -99,7 +105,14 @@ func gitHttp(ctx echo.Context) error {
 					return plainText(ctx, 404, "Check your credentials or make sure you have access to the Gist")
 				}
 
-				if ok, err := utils.Argon2id.Verify(authPassword, gist.User.Password); !ok || gist.User.Username != authUsername {
+				var userToCheckPermissions *db.User
+				if gist.Private != db.PrivateVisibility && isPull {
+					userToCheckPermissions, _ = db.GetUserByUsername(authUsername)
+				} else {
+					userToCheckPermissions = &gist.User
+				}
+
+				if ok, err := utils.Argon2id.Verify(authPassword, userToCheckPermissions.Password); !ok {
 					if err != nil {
 						return errorRes(500, "Cannot verify password", err)
 					}

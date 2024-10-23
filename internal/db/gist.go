@@ -2,17 +2,17 @@ package db
 
 import (
 	"fmt"
-	"github.com/alecthomas/chroma/v2"
-	"github.com/alecthomas/chroma/v2/lexers"
-	"github.com/dustin/go-humanize"
-	"github.com/rs/zerolog/log"
-	"github.com/thomiceli/opengist/internal/index"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/alecthomas/chroma/v2"
+	"github.com/alecthomas/chroma/v2/lexers"
+	"github.com/dustin/go-humanize"
+	"github.com/rs/zerolog/log"
 	"github.com/thomiceli/opengist/internal/git"
+	"github.com/thomiceli/opengist/internal/index"
 	"gorm.io/gorm"
 )
 
@@ -23,6 +23,19 @@ const (
 	UnlistedVisibility
 	PrivateVisibility
 )
+
+func (v Visibility) String() string {
+	switch v {
+	case PublicVisibility:
+		return "public"
+	case UnlistedVisibility:
+		return "unlisted"
+	case PrivateVisibility:
+		return "private"
+	default:
+		return "???"
+	}
+}
 
 func (v Visibility) Next() Visibility {
 	switch v {
@@ -88,7 +101,7 @@ func (gist *Gist) BeforeDelete(tx *gorm.DB) error {
 func GetGist(user string, gistUuid string) (*Gist, error) {
 	gist := new(Gist)
 	err := db.Preload("User").Preload("Forked.User").
-		Where("(gists.uuid = ? OR gists.url = ?) AND users.username like ?", gistUuid, gistUuid, user).
+		Where("(gists.uuid like ? OR gists.url = ?) AND users.username like ?", gistUuid+"%", gistUuid, user).
 		Joins("join users on gists.user_id = users.id").
 		First(&gist).Error
 
@@ -525,13 +538,17 @@ func (gist *Gist) GetLanguagesFromFiles() ([]string, error) {
 // -- DTO -- //
 
 type GistDTO struct {
-	Title       string     `validate:"max=250" form:"title"`
-	Description string     `validate:"max=1000" form:"description"`
-	URL         string     `validate:"max=32,alphanumdashorempty" form:"url"`
-	Private     Visibility `validate:"number,min=0,max=2" form:"private"`
-	Files       []FileDTO  `validate:"min=1,dive"`
-	Name        []string   `form:"name"`
-	Content     []string   `form:"content"`
+	Title       string    `validate:"max=250" form:"title"`
+	Description string    `validate:"max=1000" form:"description"`
+	URL         string    `validate:"max=32,alphanumdashorempty" form:"url"`
+	Files       []FileDTO `validate:"min=1,dive"`
+	Name        []string  `form:"name"`
+	Content     []string  `form:"content"`
+	VisibilityDTO
+}
+
+type VisibilityDTO struct {
+	Private Visibility `validate:"number,min=0,max=2" form:"private"`
 }
 
 type FileDTO struct {

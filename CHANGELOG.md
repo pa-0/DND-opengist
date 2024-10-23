@@ -1,5 +1,82 @@
 # Changelog
 
+## [1.7.5](https://github.com/thomiceli/opengist/compare/v1.7.4...v1.7.5) - 2024-09-12
+See here how to [update](/docs/update.md) Opengist.
+
+### Added
+- New website for documentation using Vitepress [https://opengist.io](https://opengist.io) (#326)
+- Ukrainian localization (#325)
+- Dummy /metrics endpoint (#327)
+
+## [1.7.4](https://github.com/thomiceli/opengist/compare/v1.7.3...v1.7.4) - 2024-09-09
+See here how to [update](/docs/update.md) Opengist.
+
+### Added
+- More translations strings (#294) (#304)
+- Hide change password form when login via password disabled (#314)
+- File delete button on create editor (#320)
+- Assets cache header 
+- Hide secret values in admin config page
+- Atomic pointer for indexer (#321)
+
+### Fixed
+- Fatal error using `cases.Title()` (#313)
+- Search unlisted gist (#319)
+
+### Other
+- Removed logger `trace` and `fatal` levels (#322)
+
+## [1.7.3](https://github.com/thomiceli/opengist/compare/v1.7.2...v1.7.3) - 2024-06-03
+See here how to [update](/docs/update.md) Opengist.
+
+### Added
+- Setting to allow anonymous access to individual gists while still RequireLogin everywhere else (#229)
+- Make edit visibility a toggle (#277)
+- More translation strings (#274) (#281)
+- String method to visibility (#276)
+
+### Fixed
+- Perms for http/ssh clone (#288)
+- Fix translation string (#293)
+
+### Other
+- Update deps Golang & JS deps
+- Check translations keys in CI (#279)
+- Fix CI check for additional translations only (#289)
+
+## [1.7.2](https://github.com/thomiceli/opengist/compare/v1.7.1...v1.7.2) - 2024-05-05
+See here how to [update](/docs/update.md) Opengist.
+
+### Added
+- Docs: 
+  - Run with systemd as a normal user (#254)
+  - Kubernetes deployment (#258)
+- More translation strings (#269) (#271)
+
+### Changed
+- Rework git log parsing and truncating (#260)
+- Set Opengist version from git tags (#261)
+
+### Fixed
+- Missing preview button when editing .md gist (#259)
+- Frontend (#267)
+  - Fix mermaid display 
+  - Move Login/Register buttons on mobile 
+  - Set minimum width on avatar
+
+### Other
+- Use go 1.22 and update deps (#244)
+
+## [1.7.1](https://github.com/thomiceli/opengist/compare/v1.7.0...v1.7.1) - 2024-04-05
+See here how to [update](/docs/update.md) Opengist.
+
+### Added
+- Docs: More detailed variant for custom pages (#248)
+
+### Fixed
+- Auth page GitlabName Error (#242)
+- Empty invitation on user creation (#247)
+
 ## [1.7.0](https://github.com/thomiceli/opengist/compare/v1.6.1...v1.7.0) - 2024-04-03
 See here how to [update](/docs/update.md) Opengist.
 

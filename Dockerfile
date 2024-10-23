@@ -15,7 +15,7 @@ RUN apk update && \
         musl-dev \
         libstdc++
 
-COPY --from=golang:1.21-alpine /usr/local/go/ /usr/local/go/
+COPY --from=golang:1.22-alpine /usr/local/go/ /usr/local/go/
 ENV PATH="/usr/local/go/bin:${PATH}"
 ENV CGO_ENABLED=0
 
@@ -32,6 +32,8 @@ FROM base AS dev
 
 EXPOSE 6157 2222 16157
 VOLUME /opengist
+
+RUN git config --global --add safe.directory /opengist
 
 CMD ["make", "watch"]
 

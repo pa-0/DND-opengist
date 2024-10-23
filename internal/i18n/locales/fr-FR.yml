@@ -166,7 +166,8 @@ admin.disable-login: Désactiver le formulaire de connexion
 admin.disable-login_help: Interdire la connexion via le formulaire de connexion pour forcer l'utilisation des fournisseurs OAuth à la place.
 admin.disable-gravatar: Désactiver Gravatar
 admin.disable-gravatar_help: Désactiver l'utilisation de Gravatar comme fournisseur d'avatar.
-
+admin.allow-gists-without-login: Autoriser les gists individuelles sans login
+admin.allow-gists-without-login_help: Autoriser la visualisation et le téléchargement de gists individuels sans connexion, tout en exigeant une connexion pour la découverte de gists.
 admin.users.delete_confirm: Voulez-vous supprimer cet utilisateur ?
 
 admin.gists.title: Titre
@@ -187,10 +188,73 @@ settings.create-password-help: Créer un mot de passe pour se connecter à Openg
 settings.change-password: Changer le mot de passe
 settings.change-password-help: Changer le mot de passe pour se connecter à Opengist via HTTP
 settings.password-label-title: Mot de passe
-auth.gitlab-oauth: Continuer avec un compte GitLab
 admin.actions.sync-previews: Synchroniser l'aperçu des gists
 admin.actions.reset-hooks: Réinitialiser les hooks de Git pour tous les dépôts
 gist.new.url: URL
 gist.search.no-results: Aucun gist trouvé
 settings.unlink-gitlab-account: Détacher le compte GitLab
 admin.actions.index-gists: Indexer tous les gists
+gist.new.preview: 'Aperçu'
+gist.new.create-a-new-gist: 'Créer un nouveau gist'
+gist.edit.edit-gist: 'Modifier %s'
+gist.list.all-liked-by: 'Tous les gists aimés par %s'
+gist.list.all-forked-by: 'Tous les gists forkées par %s'
+gist.list.all-from: 'Tous les gists de %S'
+gist.forks.for: 'Forks pour %s'
+gist.likes.for: 'J''aimes pour %s'
+gist.revision-of: 'Révisions pour %s'
+error.page-not-found: 'Page non trouvée'
+error.bad-request: 'Requête erronée'
+error.signup-disabled: 'L''inscription est désactivée'
+error.signup-disabled-form: 'L''inscription via le formulaire d''enregistrement est désactivée'
+error.login-disabled-form: 'La connexion via le formulaire de connexion est désactivée'
+error.complete-oauth-login: 'Impossible de terminer l''authentification de l''utilisateur : %s'
+error.oauth-unsupported: 'Fournisseur d''authentification non supporté'
+error.cannot-bind-data: 'Impossible de lier les données'
+error.invalid-number: 'Nombre invalide'
+error.invalid-character-unescaped: 'Caractère non protégé invalide'
+admin.invitations: 'Invitations'
+admin.invitations.create: 'Créer une invitation'
+admin.invitations.help: 'Les invitations peuvent être utilisées pour créer un compte même si l''inscription est désactivée.'
+admin.invitations.max_uses: 'Utilisations maximales'
+admin.invitations.expires_at: 'Expire le'
+admin.invitations.code: 'Code'
+admin.invitations.copy_link: 'Copier le lien'
+admin.invitations.uses: 'Utilisations'
+admin.invitations.expired: 'Expiré'
+flash.admin.user-deleted: 'L''utilisateur a été supprimé'
+flash.admin.gist-deleted: 'Le gist a été supprimée'
+flash.admin.invitation-created: 'L''invitation a été créée'
+flash.admin.invitation-deleted: 'L''invitation a été supprimée'
+flash.admin.sync-fs: 'Synchronisation des dépôts à partir du système de fichiers...'
+flash.admin.sync-db: 'Synchronisation des dépôts à partir de la base de données...'
+flash.admin.git-gc: 'Nettoyage des dépôts...'
+flash.admin.sync-previews: 'Synchronisation des aperçus du Gist...'
+flash.admin.reset-hooks: 'Réinitialisation des hooks du serveur Git pour tous les dépôts...'
+flash.admin.index-gists: 'Indexation de tous les gists...'
+flash.auth.username-exists: 'Nom d''utilisateur déjà utilisé'
+flash.auth.invalid-credentials: 'Identifiants non valides'
+flash.auth.account-linked-oauth: 'Compte lié à %s'
+flash.auth.account-unlinked-oauth: 'Compte dissocié de %s'
+flash.auth.user-sshkeys-not-retrievable: 'Impossible d''obtenir les clés de l''utilisateur'
+flash.auth.user-sshkeys-not-created: 'Impossible de créer une clé ssh'
+flash.auth.must-be-logged-in: 'Vous devez être connecté pour accéder aux gists'
+flash.gist.visibility-changed: 'La visibilité du gist a été modifiée'
+flash.gist.deleted: 'Le gist a été supprimé'
+flash.gist.fork-own-gist: 'Impossible de forker ses propres gists'
+flash.gist.forked: 'Le gist a été forké'
+flash.user.email-updated: 'Email mis à jour'
+flash.user.invalid-ssh-key: 'Clé SSH invalide'
+flash.user.ssh-key-added: 'Clé SSH ajoutée'
+flash.user.ssh-key-deleted: 'Clé SSH supprimée'
+flash.user.password-updated: 'Mot de passe mis à jour'
+flash.user.username-updated: 'Nom d''utilisateur mis à jour'
+validation.is-too-long: 'Le champ %s est trop long'
+validation.should-not-be-empty: 'Le champ %s ne doit pas être vide'
+validation.should-not-include-sub-directory: 'Le champ %s ne doit pas inclure de sous-répertoire'
+validation.should-only-contain-alphanumeric-characters: 'Le champ %s ne doit contenir que des caractères alphanumériques.'
+validation.should-only-contain-alphanumeric-characters-and-dashes: 'Le champ %s ne doit contenir que des caractères alphanumériques et des tirets.'
+validation.not-enough: 'Pas assez de %s'
+validation.invalid: '%s non valide'
+html.title.admin-panel: 'Administration'
+settings.ssh-key-exists: La clé SSH existe déjà

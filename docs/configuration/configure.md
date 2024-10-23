@@ -27,7 +27,7 @@ Usage via command line :
 ./opengist --config /path/to/config.yml
 ```
 
-You can start by copying and/or modifying the provided [config.yml](/config.yml) file.
+You can start by copying and/or modifying the provided [config.yml](https://github.com/thomiceli/opengist/blob/stable/config.yml) file.
 
 
 ## Configuration via Environment Variables
@@ -45,4 +45,28 @@ services:
 Usage via command line :
 ```shell
 OG_LOG_LEVEL=info ./opengist
+```
+
+### Using Docker Compose secrets
+
+You can use Docker Compose secrets to not expose sensitive information in your compose file, using a `.env` file.
+
+```dotenv
+# file secrets.env
+OG_GITLAB_CLIENT_KEY=your_gitlab_client_key
+OG_GITLAB_SECRET=your_gitlab_secret_key
+```
+
+And then use it in your compose file :
+
+```yml
+services:
+  opengist:
+    # ...
+    secrets:
+      - opengist_secrets
+
+secrets:
+  opengist_secrets:
+    file: ./secrets.env
 ```

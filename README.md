@@ -1,12 +1,12 @@
 # Opengist
 
-<img height="108px" src="https://raw.githubusercontent.com/thomiceli/opengist/a9dd531f676d01b93bb6bd70751a69382ca563b0/public/opengist.svg" alt="Opengist" align="right" />
+<img height="108px" src="https://raw.githubusercontent.com/thomiceli/opengist/master/public/opengist.svg" alt="Opengist" align="right" />
 
 Opengist is a **self-hosted** pastebin **powered by Git**. All snippets are stored in a Git repository and can be
 read and/or modified using standard Git commands, or with the web interface.
 It is similiar to [GitHub Gist](https://gist.github.com/), but open-source and could be self-hosted.
 
-[Documentation](/docs) • [Demo](https://opengist.thomice.li)
+[Home Page](https://opengist.io) • [Documentation](https://opengist.io/docs) • [Discord](https://discord.gg/9Pm3X5scZT) • [Demo](https://demo.opengist.io)
 
 
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/thomiceli/opengist?sort=semver)
@@ -28,7 +28,7 @@ It is similiar to [GitHub Gist](https://gist.github.com/), but open-source and c
 * OAuth2 login with GitHub, GitLab, Gitea, and OpenID Connect
 * Restrict or unrestrict snippets visibility to anonymous users
 * Docker support
-* [More...](/docs/index.md#features)
+* [More...](/docs/introduction.md#features)
 
 ## Quick start
 
@@ -47,8 +47,6 @@ It can be used in a `docker-compose.yml` file :
 3. Opengist is now running on port 6157, you can browse http://localhost:6157
 
 ```yml
-version: "3"
-
 services:
   opengist:
     image: ghcr.io/thomiceli/opengist:1.7
@@ -78,9 +76,9 @@ Download the archive for your system from the release page [here](https://github
 
 ```shell
 # example for linux amd64
-wget https://github.com/thomiceli/opengist/releases/download/v1.7.0/opengist1.7.0-linux-amd64.tar.gz
+wget https://github.com/thomiceli/opengist/releases/download/v1.7.5/opengist1.7.5-linux-amd64.tar.gz
 
-tar xzvf opengist1.7.0-linux-amd64.tar.gz
+tar xzvf opengist1.7.5-linux-amd64.tar.gz
 cd opengist
 chmod +x opengist
 ./opengist # with or without `--config config.yml`
@@ -90,7 +88,7 @@ Opengist is now running on port 6157, you can browse http://localhost:6157
 
 ### From source
 
-Requirements: [Git](https://git-scm.com/downloads) (2.28+), [Go](https://go.dev/doc/install) (1.21+), [Node.js](https://nodejs.org/en/download/) (16+), [Make](https://linux.die.net/man/1/make) (optional, but easier)
+Requirements: [Git](https://git-scm.com/downloads) (2.28+), [Go](https://go.dev/doc/install) (1.22+), [Node.js](https://nodejs.org/en/download/) (16+), [Make](https://linux.die.net/man/1/make) (optional, but easier)
 
 ```shell
 git clone https://github.com/thomiceli/opengist
@@ -103,11 +101,11 @@ Opengist is now running on port 6157, you can browse http://localhost:6157
 
 ---
 
-To create and run a development environment, see [run-development.md](/docs/contributing/run-development.md).
+To create and run a development environment, see [run-development.md](/docs/contributing/development.md).
 
 ## Documentation
 
-The documentation is available in [/docs](/docs) directory.
+The documentation is available at [https://opengist.io/](https://opengist.io/) or in the [/docs](/docs) directory.
 
 
 ## License
