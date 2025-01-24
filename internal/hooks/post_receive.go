@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/thomiceli/opengist/internal/db"
 	"github.com/thomiceli/opengist/internal/git"
-	"github.com/thomiceli/opengist/internal/utils"
+	validatorpkg "github.com/thomiceli/opengist/internal/validator"
 	"io"
 	"os"
 	"os/exec"
@@ -18,7 +18,7 @@ func PostReceive(in io.Reader, out, er io.Writer) error {
 	newGist := false
 	opts := pushOptions()
 	gistUrl := os.Getenv("OPENGIST_REPOSITORY_URL_INTERNAL")
-	validator := utils.NewValidator()
+	validator := validatorpkg.NewValidator()
 
 	scanner := bufio.NewScanner(in)
 	for scanner.Scan() {
@@ -63,6 +63,11 @@ func PostReceive(in io.Reader, out, er io.Writer) error {
 	if opts["title"] != "" && validator.Var(opts["title"], "max=250") == nil {
 		gist.Title = opts["title"]
 		outputSb.WriteString(fmt.Sprintf("Gist title set to \"%s\"\n\n", opts["title"]))
+	}
+
+	if opts["description"] != "" && validator.Var(opts["description"], "max=1000") == nil {
+		gist.Description = opts["description"]
+		outputSb.WriteString(fmt.Sprintf("Gist description set to \"%s\"\n\n", opts["description"]))
 	}
 
 	if hasNoCommits, err := git.HasNoCommits(gist.User.Username, gist.Uuid); err != nil {

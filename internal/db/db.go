@@ -46,18 +46,21 @@ var DatabaseInfo *databaseInfo
 func parseDBURI(uri string) (*databaseInfo, error) {
 	info := &databaseInfo{}
 
-	if !strings.Contains(uri, "://") {
+	if uri == ":memory:" {
 		info.Type = SQLite
-		if uri == "file::memory:" {
-			info.Database = "file::memory:"
-			return info, nil
-		}
-		info.Database = filepath.Join(config.GetHomeDir(), uri)
+		info.Database = uri
 		return info, nil
 	}
+
 	u, err := url.Parse(uri)
 	if err != nil {
 		return nil, fmt.Errorf("invalid URI: %v", err)
+	}
+
+	if u.Scheme == "" {
+		info.Type = SQLite
+		info.Database = filepath.Join(config.GetHomeDir(), uri)
+		return info, nil
 	}
 
 	switch u.Scheme {
@@ -65,6 +68,8 @@ func parseDBURI(uri string) (*databaseInfo, error) {
 		info.Type = PostgreSQL
 	case "mysql", "mariadb":
 		info.Type = MySQL
+	case "file":
+		info.Type = SQLite
 	default:
 		return nil, fmt.Errorf("unknown database: %v", err)
 	}
@@ -83,6 +88,8 @@ func parseDBURI(uri string) (*databaseInfo, error) {
 	switch info.Type {
 	case PostgreSQL, MySQL:
 		info.Database = strings.TrimPrefix(u.Path, "/")
+	case SQLite:
+		info.Database = u.String()
 	default:
 		return nil, fmt.Errorf("unknown database: %v", err)
 	}
@@ -90,14 +97,14 @@ func parseDBURI(uri string) (*databaseInfo, error) {
 	return info, nil
 }
 
-func Setup(dbUri string, sharedCache bool) error {
+func Setup(dbUri string) error {
 	dbInfo, err := parseDBURI(dbUri)
 	if err != nil {
 		return err
 	}
 
 	log.Info().Msgf("Setting up a %s database connection", dbInfo.Type)
-	var setupFunc func(databaseInfo, bool) error
+	var setupFunc func(databaseInfo) error
 	switch dbInfo.Type {
 	case SQLite:
 		setupFunc = setupSQLite
@@ -113,7 +120,7 @@ func Setup(dbUri string, sharedCache bool) error {
 	retryInterval := 1 * time.Second
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		err = setupFunc(*dbInfo, sharedCache)
+		err = setupFunc(*dbInfo)
 		if err == nil {
 			log.Info().Msg("Database connection established")
 			break
@@ -137,11 +144,11 @@ func Setup(dbUri string, sharedCache bool) error {
 		return err
 	}
 
-	if err = db.AutoMigrate(&User{}, &Gist{}, &SSHKey{}, &AdminSetting{}, &Invitation{}); err != nil {
+	if err = db.AutoMigrate(&User{}, &Gist{}, &SSHKey{}, &AdminSetting{}, &Invitation{}, &WebAuthnCredential{}, &TOTP{}); err != nil {
 		return err
 	}
 
-	if err = applyMigrations(db, dbInfo); err != nil {
+	if err = applyMigrations(dbInfo); err != nil {
 		return err
 	}
 
@@ -182,28 +189,38 @@ func Ping() error {
 	return sql.Ping()
 }
 
-func setupSQLite(dbInfo databaseInfo, sharedCache bool) error {
+func setupSQLite(dbInfo databaseInfo) error {
 	var err error
+	var dsn string
 	journalMode := strings.ToUpper(config.C.SqliteJournalMode)
 
 	if !slices.Contains([]string{"DELETE", "TRUNCATE", "PERSIST", "MEMORY", "WAL", "OFF"}, journalMode) {
 		log.Warn().Msg("Invalid SQLite journal mode: " + journalMode)
 	}
 
-	sharedCacheStr := ""
-	if sharedCache {
-		sharedCacheStr = "&cache=shared"
-	}
+	if dbInfo.Database == ":memory:" {
+		dsn = ":memory:?_fk=true&cache=shared"
+	} else {
+		u, err := url.Parse(dbInfo.Database)
+		if err != nil {
+			return err
+		}
 
-	db, err = gorm.Open(sqlite.Open(dbInfo.Database+"?_fk=true&_journal_mode="+journalMode+sharedCacheStr), &gorm.Config{
+		u.Scheme = "file"
+		q := u.Query()
+		q.Set("_fk", "true")
+		q.Set("_journal_mode", journalMode)
+		u.RawQuery = q.Encode()
+		dsn = u.String()
+	}
+	db, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{
 		Logger:         logger.Default.LogMode(logger.Silent),
 		TranslateError: true,
 	})
-
 	return err
 }
 
-func setupPostgres(dbInfo databaseInfo, sharedCache bool) error {
+func setupPostgres(dbInfo databaseInfo) error {
 	var err error
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", dbInfo.Host, dbInfo.Port, dbInfo.User, dbInfo.Password, dbInfo.Database)
 
@@ -215,7 +232,7 @@ func setupPostgres(dbInfo databaseInfo, sharedCache bool) error {
 	return err
 }
 
-func setupMySQL(dbInfo databaseInfo, sharedCache bool) error {
+func setupMySQL(dbInfo databaseInfo) error {
 	var err error
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", dbInfo.User, dbInfo.Password, dbInfo.Host, dbInfo.Port, dbInfo.Database)
 
@@ -241,5 +258,5 @@ func DeprecationDBFilename() {
 }
 
 func TruncateDatabase() error {
-	return db.Migrator().DropTable("likes", &User{}, "gists", &SSHKey{}, &AdminSetting{}, &Invitation{})
+	return db.Migrator().DropTable("likes", &User{}, "gists", &SSHKey{}, &AdminSetting{}, &Invitation{}, &WebAuthnCredential{}, &TOTP{})
 }

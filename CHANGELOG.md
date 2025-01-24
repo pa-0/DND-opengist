@@ -1,5 +1,82 @@
 # Changelog
 
+## [1.8.4](https://github.com/thomiceli/opengist/compare/v1.8.3...v1.8.4) - 2024-12-15
+See here how to [update](/docs/update.md) Opengist.
+
+### Added
+- More translation strings (#398)
+- Custom instance names (#399)
+
+### Fixed
+- Prevent passwords managers autofill on filename inputs (#357)
+
+## [1.8.3](https://github.com/thomiceli/opengist/compare/v1.8.2...v1.8.3) - 2024-11-26
+See here how to [update](/docs/update.md) Opengist.
+
+### Changed
+- Throw `warn` instead of `fatal` on Git global config init failure (#392)
+- Define esbuild as a Javascript dependency for all other platforms (#393)
+
+## [1.8.2](https://github.com/thomiceli/opengist/compare/v1.8.1...v1.8.2) - 2024-11-25
+See here how to [update](/docs/update.md) Opengist.
+
+### Added
+- More translation strings (#373) (#388)
+
+### Changed
+- Enforce git config on startup (#383)
+- Respect file scheme URIs for SQLite. (#387)
+
+### Fixed
+- Convert octal notation file names in Git (#380)
+- Git clone on SSH with MySQL (#382)
+- Escaping for embed gists (#381)
+
+### Other
+- Update deps Golang & JS deps
+
+## [1.8.1](https://github.com/thomiceli/opengist/compare/v1.8.0...v1.8.1) - 2024-11-02
+See here how to [update](/docs/update.md) Opengist.
+
+### Changed
+- Hide passkey login when login form is disabled (#369)
+
+### Fixed
+- Markdown preview (#368)
+- confirm() popup messages (#370)
+
+## [1.8.0](https://github.com/thomiceli/opengist/compare/v1.7.5...v1.8.0) - 2024-10-31
+See here how to [update](https://opengist.io/docs/update) Opengist.
+
+### 🔴 Deprecations 
+_Removed in the next SemVer MAJOR version of Opengist._
+* Use the configuration option `db-uri`/`OG_DB_URI` **instead of** `db-filename`/`OG_DB_FILENAME`.\
+  More info [here](https://opengist.io/docs/configuration/databases/sqlite) if you plan to keep SQLite as a DBMS for Opengist.
+
+### Added
+- Postgres and MySQL databases support (#335)
+- Passkeys & TOTP support + MFA (#341) (#342)
+- Add/Remove admins (#337)
+- Queriable shorter uuids (#338)
+- Use Docker secrets (#340)
+- SVG preview in Markdown (#346)
+- Secret key definition & move the secret key file to its parent directory (#358)
+- More translation strings (#339)
+
+### Changed
+- Separate OAuth unlink URL (#336)
+
+### Fixed
+- Adding multiple empty lines in editor. (#345)
+- Config URL (#343)
+- Send Markdown preview data as form params (#347)
+- Fix oauth endpoint to support detecting https in 'Forwarded' header, enabling google support (#359)
+- Use mail handle if OAuth nickname is empty (#362)
+
+### Other
+- Use go 1.23 and update deps (#354)
+- Typos in README (#363)
+
 ## [1.7.5](https://github.com/thomiceli/opengist/compare/v1.7.4...v1.7.5) - 2024-09-12
 See here how to [update](/docs/update.md) Opengist.
 

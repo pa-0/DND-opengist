@@ -1,4 +1,4 @@
-package utils
+package session
 
 import (
 	"github.com/gorilla/securecookie"
@@ -6,10 +6,12 @@ import (
 	"os"
 )
 
-func ReadKey(filePath string) []byte {
+// GenerateSecretKey generates a new secret key for sessions
+// Returns the key and a boolean indicating if the key was generated
+func GenerateSecretKey(filePath string) ([]byte, bool) {
 	key, err := os.ReadFile(filePath)
 	if err == nil {
-		return key
+		return key, false
 	}
 
 	key = securecookie.GenerateRandomKey(32)
@@ -22,5 +24,5 @@ func ReadKey(filePath string) []byte {
 		log.Fatal().Err(err).Msgf("Failed to save the key to %s", filePath)
 	}
 
-	return key
+	return key, true
 }

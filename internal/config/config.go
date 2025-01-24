@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/thomiceli/opengist/internal/session"
 	"io"
 	"net/url"
 	"os"
@@ -14,7 +15,6 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/thomiceli/opengist/internal/utils"
 	"gopkg.in/yaml.v3"
 )
 
@@ -22,9 +22,13 @@ var OpengistVersion = ""
 
 var C *config
 
+var SecretKey []byte
+
 // Not using nested structs because the library
 // doesn't support dot notation in this case sadly
 type config struct {
+	SecretKey string `yaml:"secret-key" env:"OG_SECRET_KEY"`
+
 	LogLevel     string `yaml:"log-level" env:"OG_LOG_LEVEL"`
 	LogOutput    string `yaml:"log-output" env:"OG_LOG_OUTPUT"`
 	ExternalUrl  string `yaml:"external-url" env:"OG_EXTERNAL_URL"`
@@ -67,6 +71,7 @@ type config struct {
 	OIDCSecret       string `yaml:"oidc.secret" env:"OG_OIDC_SECRET"`
 	OIDCDiscoveryUrl string `yaml:"oidc.discovery-url" env:"OG_OIDC_DISCOVERY_URL"`
 
+	CustomName    string       `yaml:"custom.name" env:"OG_CUSTOM_NAME"`
 	CustomLogo    string       `yaml:"custom.logo" env:"OG_CUSTOM_LOGO"`
 	CustomFavicon string       `yaml:"custom.favicon" env:"OG_CUSTOM_FAVICON"`
 	StaticLinks   []StaticLink `yaml:"custom.static-links" env:"OG_CUSTOM_STATIC_LINK"`
@@ -79,6 +84,8 @@ type StaticLink struct {
 
 func configWithDefaults() (*config, error) {
 	c := &config{}
+
+	c.SecretKey = ""
 
 	c.LogLevel = "warn"
 	c.LogOutput = "stdout,file"
@@ -136,6 +143,10 @@ func InitConfig(configPath string, out io.Writer) error {
 
 	C = c
 
+	if err = migrateConfig(); err != nil {
+		return err
+	}
+
 	if err = os.Setenv("OG_OPENGIST_HOME_INTERNAL", GetHomeDir()); err != nil {
 		return err
 	}
@@ -154,9 +165,9 @@ func InitLog() {
 	}
 
 	var logWriters []io.Writer
-	logOutputTypes := utils.RemoveDuplicates[string](
-		strings.Split(strings.ToLower(C.LogOutput), ","),
-	)
+	logOutputTypes := strings.Split(strings.ToLower(C.LogOutput), ",")
+	slices.Sort(logOutputTypes)
+	logOutputTypes = slices.Compact(logOutputTypes)
 
 	consoleWriter := zerolog.NewConsoleWriter(
 		func(w *zerolog.ConsoleWriter) {
@@ -229,6 +240,15 @@ func CheckGitVersion(version string) (bool, error) {
 func GetHomeDir() string {
 	absolutePath, _ := filepath.Abs(C.OpengistHome)
 	return filepath.Clean(absolutePath)
+}
+
+func SetupSecretKey() {
+	if C.SecretKey == "" {
+		path := filepath.Join(GetHomeDir(), "opengist-secret.key")
+		SecretKey, _ = session.GenerateSecretKey(path)
+	} else {
+		SecretKey = []byte(C.SecretKey)
+	}
 }
 
 func loadConfigFromYaml(c *config, configPath string, out io.Writer) error {

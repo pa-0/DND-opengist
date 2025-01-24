@@ -1,6 +1,6 @@
 import {EditorView, gutter, keymap, lineNumbers} from "@codemirror/view";
 import {Compartment, EditorState, Facet, Line, SelectionRange} from "@codemirror/state";
-import {indentLess} from "@codemirror/commands";
+import {defaultKeymap, indentLess} from "@codemirror/commands";
 
 document.addEventListener("DOMContentLoaded", () => {
     EditorView.theme({}, {dark: true});
@@ -27,7 +27,10 @@ document.addEventListener("DOMContentLoaded", () => {
             extensions: [
                 lineNumbers(),
                 gutter({class: "cm-mygutter"}),
-                keymap.of([{key: "Tab", run: customIndentMore, shift: indentLess}]),
+                keymap.of([
+                    {key: "Tab", run: customIndentMore, shift: indentLess},
+                    ...defaultKeymap,
+                ]),
                 indentSize.of(EditorState.tabSize.of(2)),
                 wrapMode.of([]),
                 indentType.of(txtFacet.of("space")),
@@ -68,11 +71,16 @@ document.addEventListener("DOMContentLoaded", () => {
                 cmeditor!.classList.remove("hidden-important");
                 return;
             } else {
-                fetch(`${baseUrl}/preview?` +  new URLSearchParams({
-                    content: editor.state.doc.toString()
-                }), {
-                    method: 'GET',
+                const formData = new FormData();
+                formData.append('content', editor.state.doc.toString());
+                let csrf = document.querySelector<HTMLInputElement>('form#create input[name="_csrf"]').value
+                fetch(`${baseUrl}/preview`, {
+                    method: 'POST',
                     credentials: 'same-origin',
+                    body: formData,
+                    headers: {
+                        'X-CSRF-Token': csrf
+                    }
                 }).then(r => r.text()).then(r => {
                     let divpreview = dom.querySelector("div.preview") as HTMLElement;
                     divpreview!.innerHTML = r;

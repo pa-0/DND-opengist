@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -115,6 +116,9 @@ func GetFilesOfRepository(user string, gist string, revision string) ([]string, 
 	}
 
 	slice := strings.Split(string(stdout), "\n")
+	for i, s := range slice {
+		slice[i] = convertOctalToUTF8(s)
+	}
 	return slice[:len(slice)-1], nil
 }
 
@@ -153,7 +157,7 @@ func CatFileBatch(user string, gist string, revision string, truncate bool) ([]*
 		fileMap = append(fileMap, &catFileBatch{
 			Hash: hash,
 			Size: size,
-			Name: name,
+			Name: convertOctalToUTF8(name),
 		})
 	}
 
@@ -249,7 +253,7 @@ func GetFileContent(user string, gist string, revision string, filename string, 
 		"git",
 		"--no-pager",
 		"show",
-		revision+":"+filename,
+		revision+":"+convertURLToOctal(filename),
 	)
 	cmd.Dir = repositoryPath
 
@@ -273,7 +277,7 @@ func GetFileSize(user string, gist string, revision string, filename string) (ui
 		"git",
 		"cat-file",
 		"-s",
-		revision+":"+filename,
+		revision+":"+convertURLToOctal(filename),
 	)
 	cmd.Dir = repositoryPath
 
@@ -481,6 +485,22 @@ func GcRepos() error {
 	return err
 }
 
+func ResetHooks() error {
+	entries, err := filepath.Glob(filepath.Join(config.GetHomeDir(), ReposDirectory, "*", "*"))
+	if err != nil {
+		return err
+	}
+
+	for _, e := range entries {
+		repoPath := strings.Split(e, string(os.PathSeparator))
+		if err := CreateDotGitFiles(repoPath[len(repoPath)-2], repoPath[len(repoPath)-1]); err != nil {
+			log.Error().Err(err).Msgf("Cannot reset hooks for repository %s/%s", repoPath[len(repoPath)-2], repoPath[len(repoPath)-1])
+		}
+	}
+
+	return nil
+}
+
 func HasNoCommits(user string, gist string) (bool, error) {
 	repositoryPath := RepositoryPath(user, gist)
 
@@ -536,6 +556,10 @@ func CreateDotGitFiles(user string, gist string) error {
 	return nil
 }
 
+func DeleteUserDirectory(user string) error {
+	return os.RemoveAll(filepath.Join(config.GetHomeDir(), ReposDirectory, user))
+}
+
 func createDotGitHookFile(repositoryPath string, hook string, content string) error {
 	preReceiveDst, err := os.OpenFile(filepath.Join(repositoryPath, "hooks", hook), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0744)
 	if err != nil {
@@ -563,6 +587,48 @@ func removeFilesExceptGit(dir string) error {
 		}
 		return nil
 	})
+}
+
+func convertOctalToUTF8(name string) string {
+	name = strings.Trim(name, `"`)
+	utf8Name, err := strconv.Unquote(name)
+	if err != nil {
+		utf8Name, err = strconv.Unquote(`"` + name + `"`)
+		if err != nil {
+			return name
+		}
+	}
+	return utf8Name
+}
+
+func convertUTF8ToOctal(name string) string {
+	if strings.Contains(name, "\\") {
+		return name
+	}
+
+	needsQuoting := false
+	for _, r := range name {
+		if r > 127 {
+			needsQuoting = true
+			break
+		}
+	}
+
+	if !needsQuoting {
+		return name
+	}
+
+	quoted := fmt.Sprintf("%q", name)
+	return strings.Trim(quoted, `"`)
+}
+
+func convertURLToOctal(name string) string {
+	decoded, err := url.QueryUnescape(name)
+	if err != nil {
+		return name
+	}
+
+	return convertUTF8ToOctal(decoded)
 }
 
 const hookTemplate = `#!/bin/sh

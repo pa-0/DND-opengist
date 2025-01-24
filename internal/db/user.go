@@ -1,6 +1,7 @@
 package db
 
 import (
+	"github.com/thomiceli/opengist/internal/git"
 	"gorm.io/gorm"
 )
 
@@ -18,37 +19,43 @@ type User struct {
 	GiteaID   string
 	OIDCID    string `gorm:"column:oidc_id"`
 
-	Gists   []Gist   `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:UserID"`
-	SSHKeys []SSHKey `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:UserID"`
-	Liked   []Gist   `gorm:"many2many:likes;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	Gists               []Gist               `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:UserID"`
+	SSHKeys             []SSHKey             `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:UserID"`
+	Liked               []Gist               `gorm:"many2many:likes;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	WebAuthnCredentials []WebAuthnCredential `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:UserID"`
 }
 
 func (user *User) BeforeDelete(tx *gorm.DB) error {
-	// Decrement likes counter for all gists liked by this user
-	// The likes will be automatically deleted by the foreign key constraint
-	err := tx.Model(&Gist{}).
-		Omit("updated_at").
-		Where("id IN (?)", tx.
-			Select("gist_id").
-			Table("likes").
-			Where("user_id = ?", user.ID),
-		).
-		UpdateColumn("nb_likes", gorm.Expr("nb_likes - 1")).
-		Error
+	// Decrement likes counter using derived table
+	err := tx.Exec(`
+		UPDATE gists 
+		SET nb_likes = nb_likes - 1
+		WHERE id IN (
+			SELECT gist_id 
+			FROM (
+				SELECT gist_id 
+				FROM likes 
+				WHERE user_id = ?
+			) AS derived_likes
+		)
+	`, user.ID).Error
 	if err != nil {
 		return err
 	}
 
-	// Decrement forks counter for all gists forked by this user
-	err = tx.Model(&Gist{}).
-		Omit("updated_at").
-		Where("id IN (?)", tx.
-			Select("forked_id").
-			Table("gists").
-			Where("user_id = ?", user.ID),
-		).
-		UpdateColumn("nb_forks", gorm.Expr("nb_forks - 1")).
-		Error
+	// Decrement forks counter using derived table
+	err = tx.Exec(`
+		UPDATE gists 
+		SET nb_forks = nb_forks - 1
+		WHERE id IN (
+			SELECT forked_id 
+			FROM (
+				SELECT forked_id 
+				FROM gists 
+				WHERE user_id = ? AND forked_id IS NOT NULL
+			) AS derived_forks
+		)
+	`, user.ID).Error
 	if err != nil {
 		return err
 	}
@@ -58,8 +65,22 @@ func (user *User) BeforeDelete(tx *gorm.DB) error {
 		return err
 	}
 
-	// Delete all gists created by this user
-	return tx.Where("user_id = ?", user.ID).Delete(&Gist{}).Error
+	err = tx.Where("user_id = ?", user.ID).Delete(&WebAuthnCredential{}).Error
+	if err != nil {
+		return err
+	}
+
+	err = tx.Where("user_id = ?", user.ID).Delete(&Gist{}).Error
+	if err != nil {
+		return err
+	}
+
+	// Delete user directory
+	if err = git.DeleteUserDirectory(user.Username); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func UserExists(username string) (bool, error) {
@@ -198,6 +219,19 @@ func (user *User) DeleteProviderID(provider string) error {
 	}
 
 	return nil
+}
+
+func (user *User) HasMFA() (bool, bool, error) {
+	var webauthn bool
+	var totp bool
+	err := db.Model(&WebAuthnCredential{}).Select("count(*) > 0").Where("user_id = ?", user.ID).Find(&webauthn).Error
+	if err != nil {
+		return false, false, err
+	}
+
+	err = db.Model(&TOTP{}).Select("count(*) > 0").Where("user_id = ?", user.ID).Find(&totp).Error
+
+	return webauthn, totp, err
 }
 
 // -- DTO -- //
