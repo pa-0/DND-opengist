@@ -2,9 +2,9 @@
 
 <img height="108px" src="https://raw.githubusercontent.com/thomiceli/opengist/master/public/opengist.svg" alt="Opengist" align="right" />
 
-Opengist is a **self-hosted** pastebin **powered by Git**. All snippets are stored in a Git repository and can be
+Opengist is a **self-hosted** Pastebin **powered by Git**. All snippets are stored in a Git repository and can be
 read and/or modified using standard Git commands, or with the web interface.
-It is similiar to [GitHub Gist](https://gist.github.com/), but open-source and could be self-hosted.
+It is similar to [GitHub Gist](https://gist.github.com/), but open-source and could be self-hosted.
 
 [Home Page](https://opengist.io) • [Documentation](https://opengist.io/docs) • [Discord](https://discord.gg/9Pm3X5scZT) • [Demo](https://demo.opengist.io)
 
@@ -13,14 +13,14 @@ It is similiar to [GitHub Gist](https://gist.github.com/), but open-source and c
 ![License](https://img.shields.io/github/license/thomiceli/opengist?color=blue)
 [![Go CI](https://github.com/thomiceli/opengist/actions/workflows/go.yml/badge.svg)](https://github.com/thomiceli/opengist/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/thomiceli/opengist)](https://goreportcard.com/report/github.com/thomiceli/opengist)
-
+[![Translate](https://tr.opengist.io/widget/_/svg-badge.svg)](https://tr.opengist.io/projects/_/opengist/)
 
 ## Features
 
 * Create public, unlisted or private snippets
 * [Init](/docs/usage/init-via-git.md) / Clone / Pull / Push snippets **via Git** over HTTP or SSH
 * Syntax highlighting ; markdown & CSV support
-* Search code in snippets ; browse users snippets, likes and forks
+* Search code in snippets; browse users snippets, likes and forks
 * Embed snippets in other websites
 * Revisions history
 * Like / Fork snippets
@@ -37,7 +37,7 @@ It is similiar to [GitHub Gist](https://gist.github.com/), but open-source and c
 Docker [images](https://github.com/thomiceli/opengist/pkgs/container/opengist) are available for each release :
 
 ```shell
-docker pull ghcr.io/thomiceli/opengist:1.7
+docker pull ghcr.io/thomiceli/opengist:1.8
 ```
 
 It can be used in a `docker-compose.yml` file :
@@ -49,7 +49,7 @@ It can be used in a `docker-compose.yml` file :
 ```yml
 services:
   opengist:
-    image: ghcr.io/thomiceli/opengist:1.7
+    image: ghcr.io/thomiceli/opengist:1.8
     container_name: opengist
     restart: unless-stopped
     ports:
@@ -76,9 +76,9 @@ Download the archive for your system from the release page [here](https://github
 
 ```shell
 # example for linux amd64
-wget https://github.com/thomiceli/opengist/releases/download/v1.7.5/opengist1.7.5-linux-amd64.tar.gz
+wget https://github.com/thomiceli/opengist/releases/download/v1.8.4/opengist1.8.4-linux-amd64.tar.gz
 
-tar xzvf opengist1.7.5-linux-amd64.tar.gz
+tar xzvf opengist1.8.4-linux-amd64.tar.gz
 cd opengist
 chmod +x opengist
 ./opengist # with or without `--config config.yml`
@@ -88,7 +88,7 @@ Opengist is now running on port 6157, you can browse http://localhost:6157
 
 ### From source
 
-Requirements: [Git](https://git-scm.com/downloads) (2.28+), [Go](https://go.dev/doc/install) (1.22+), [Node.js](https://nodejs.org/en/download/) (16+), [Make](https://linux.die.net/man/1/make) (optional, but easier)
+Requirements: [Git](https://git-scm.com/downloads) (2.28+), [Go](https://go.dev/doc/install) (1.23+), [Node.js](https://nodejs.org/en/download/) (16+), [Make](https://linux.die.net/man/1/make) (optional, but easier)
 
 ```shell
 git clone https://github.com/thomiceli/opengist

@@ -10,7 +10,7 @@ import (
 	"github.com/thomiceli/opengist/internal/index"
 	"github.com/thomiceli/opengist/internal/memdb"
 	"github.com/thomiceli/opengist/internal/ssh"
-	"github.com/thomiceli/opengist/internal/web"
+	"github.com/thomiceli/opengist/internal/web/server"
 	"github.com/urfave/cli/v2"
 	"os"
 	"os/signal"
@@ -37,7 +37,7 @@ var CmdStart = cli.Command{
 
 		Initialize(ctx)
 
-		go web.NewServer(os.Getenv("OG_DEV") == "1", path.Join(config.GetHomeDir(), "sessions")).Start()
+		go server.NewServer(os.Getenv("OG_DEV") == "1", path.Join(config.GetHomeDir(), "sessions"), false).Start()
 		go ssh.Start()
 
 		<-stopCtx.Done()
@@ -76,6 +76,8 @@ func Initialize(ctx *cli.Context) {
 		panic(err)
 	}
 
+	config.SetupSecretKey()
+
 	config.InitLog()
 
 	gitVersion, err := git.GetGitVersion()
@@ -92,6 +94,10 @@ func Initialize(ctx *cli.Context) {
 
 	homePath := config.GetHomeDir()
 	log.Info().Msg("Data directory: " + homePath)
+
+	if err := git.InitGitConfig(); err != nil {
+		log.Warn().Err(err).Msgf("Failed to change the host's git global config, ensure to add to `safe.directory` the path %s, and `receive.advertisePushOptions` is set to true.", homePath)
+	}
 
 	if err := createSymlink(homePath, ctx.String("config")); err != nil {
 		log.Fatal().Err(err).Msg("Failed to create symlinks")
@@ -111,7 +117,7 @@ func Initialize(ctx *cli.Context) {
 	}
 
 	db.DeprecationDBFilename()
-	if err := db.Setup(config.C.DBUri, false); err != nil {
+	if err := db.Setup(config.C.DBUri); err != nil {
 		log.Fatal().Err(err).Msg("Failed to initialize database")
 	}
 

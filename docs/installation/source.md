@@ -2,7 +2,7 @@
 
 Requirements:
 * [Git](https://git-scm.com/downloads) (2.28+)
-* [Go](https://go.dev/doc/install) (1.22+)
+* [Go](https://go.dev/doc/install) (1.23+)
 * [Node.js](https://nodejs.org/en/download/) (16+)
 * [Make](https://linux.die.net/man/1/make) (optional, but easier)
 
@@ -10,7 +10,7 @@ Requirements:
 git clone https://github.com/thomiceli/opengist
 cd opengist
 
-git checkout v1.7.5 # optional, to checkout the latest release
+git checkout v1.8.4 # optional, to checkout the latest release
 
 make
 ./opengist
